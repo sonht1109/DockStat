@@ -95,6 +95,18 @@ final class StatsStore {
         engine?.fireNow()
     }
 
+    /// Injects one snapshot for offscreen rendering (`--panel`). No sampling and
+    /// no menu bar / Dock side effects: only the panel's values are set.
+    func showPreview(_ sample: Sample, critical: Bool = false) {
+        self.sample = sample
+        let thresholds = settings.thresholds
+        cpuSeverity = thresholds.severity(.cpu, metric: sample.cpu ?? 0, previous: .normal)
+        memSeverity = thresholds.severity(.mem, metric: sample.mem ?? 0, previous: .normal)
+        diskSeverity = critical
+            ? .critical
+            : thresholds.severity(.disk, metric: sample.diskUsedPercent ?? 0, previous: .normal)
+    }
+
     func applyLaunchAtLoginState() {
         guard LaunchAtLogin.isEnabled != settings.launchAtLogin else { return }
         if let reason = LaunchAtLogin.set(settings.launchAtLogin) {

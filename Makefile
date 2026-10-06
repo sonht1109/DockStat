@@ -4,7 +4,7 @@ INSTALL_TO := /Applications/DockStat.app
 BUNDLE_ID  := dev.sonht.dockstat
 ICNS       := Resources/DockStat.icns
 
-.PHONY: build bundle sign run restart install uninstall clean perf bench verify icons logo
+.PHONY: build bundle sign run restart install uninstall clean perf bench verify icons logo panel
 
 LOGO := docs/logo.png
 
@@ -66,3 +66,6 @@ verify: sign
 	$(BIN) --self-test
 	$(BIN) --probe 3
 	$(BIN) --render dist/icon-preview.png
+
+panel: sign
+	$(BIN) --panel dist/panel-preview.png

@@ -81,9 +81,13 @@ concurrency-safe). All three are fixed-size C structs — no allocation, no
 (no width jitter). Configurable metric set, order, style and separator, plus
 per-metric colours. Styles: `27%` (number only), `27%` over `CPU` (label below),
 or `27%` over the metric's SF Symbol (icon below). Stacked styles are drawn as
-one image, since a status item title is a single text line. Left click → minimal
-popover (values, interval picker, refresh, Settings…, Quit); right click →
-context menu.
+one image, since a status item title is a single text line. Left click → panel
+hung off the bottom edge of the menu bar: a live value and meter per metric, the
+interval picker and refresh; right click → context menu.
+
+The panel is a borderless `NSPanel` that we place by hand, not an `NSPopover`:
+AppKit decides where a popover goes, and it does not always decide to put it
+directly under the menu bar.
 
 ## Dock icon
 
@@ -125,6 +129,9 @@ keys fall back to defaults, so adding a setting never wipes a configuration.
 - `--probe [n]` — samples the three metrics for `n` seconds and prints the
   derived menu bar title / Dock icon lines.
 - `--render <path>` — writes the rendered Dock icon to a PNG for eyeballing.
+- `--panel <path>` (`make panel`) — writes the panel to a PNG. The interval
+  popup comes out blank (the renderer cannot draw it); everything else is to
+  scale.
 - `--bench` (`make bench`) — per-operation timings of the polling path.
 
 Cross-check MEM against Activity Monitor, disk against `df -h /`:

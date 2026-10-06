@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import ServiceManagement
+import SwiftUI
 
 /// Headless self-check, used by `make verify`. Not part of the normal UI path.
 ///
@@ -42,6 +43,11 @@ enum Probe {
         if let index = arguments.firstIndex(of: "--render") {
             let path = arguments.count > index + 1 ? arguments[index + 1] : "/tmp/dockstat-icon.png"
             renderIcon(to: path)
+            return true
+        }
+        if let index = arguments.firstIndex(of: "--panel") {
+            let path = arguments.count > index + 1 ? arguments[index + 1] : "/tmp/dockstat-panel.png"
+            renderPanel(to: path)
             return true
         }
         return false
@@ -103,6 +109,33 @@ enum Probe {
             try? png.write(to: URL(fileURLWithPath: path))
             print("wrote \(path) (\(Int(image.size.width))×\(Int(image.size.height)) pt)")
         }
+    }
+}
+
+extension Probe {
+    /// Offscreen render of the menu bar panel, so a change to it can be looked at
+    /// without opening the app. Native controls the renderer cannot draw (the
+    /// interval popup) come out blank; everything else is to scale.
+    @MainActor
+    static func renderPanel(to path: String) {
+        let store = StatsStore()
+        store.showPreview(
+            Sample(cpu: 42, mem: 68, diskFree: 35_800_000_000, diskTotal: 494_300_000_000)
+        )
+        let view = PanelView(store: store, onOpenSettings: {}, onQuit: {}, vibrancy: false)
+
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        guard let image = renderer.nsImage,
+              let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:])
+        else {
+            print("panel render failed")
+            return
+        }
+        try? png.write(to: URL(fileURLWithPath: path))
+        print("wrote \(path) (\(Int(image.size.width))×\(Int(image.size.height)) pt)")
     }
 }
 
