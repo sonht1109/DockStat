@@ -107,7 +107,21 @@ final class DockIconRenderer {
 
     // MARK: - Drawing
 
+    /// macOS app icons leave a transparent margin around the squircle: the
+    /// shape is 824 of the 1024pt icon grid, i.e. 100pt on each side. Drawing
+    /// edge to edge makes the tile read larger than its Dock neighbours.
+    static let contentMargin: CGFloat = 100.0 / 1024.0
+
     static func draw(in cg: CGContext, size: CGFloat, spec: IconSpec, lines: [LaidOutLine]) {
+        // Scale everything — squircle, border, text, separator — into the
+        // content box, so the icon matches the system grid at any size.
+        let margin = size * contentMargin
+        let content = size - margin * 2
+        cg.saveGState()
+        defer { cg.restoreGState() }
+        cg.translateBy(x: margin, y: margin)
+        cg.scaleBy(x: content / size, y: content / size)
+
         let rect = CGRect(x: 0, y: 0, width: size, height: size)
         let radius = size * 0.2237
 
