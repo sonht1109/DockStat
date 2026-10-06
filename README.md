@@ -1,10 +1,12 @@
 # DockStat
 
+[![CI](https://github.com/sonht1109/DockStat/actions/workflows/ci.yml/badge.svg)](https://github.com/sonht1109/DockStat/actions/workflows/ci.yml)
+
 Live CPU / memory / disk in the macOS menu bar **and** on the Dock icon.
 Native SwiftUI + AppKit, no Xcode project, no subprocesses.
 
 ```
-make run          # build the bundle and launch it
+make run          # build dist/DockStat.app and launch it
 make install      # copy to /Applications (better for launch-at-login)
 make verify       # self-test + 3s sampler probe + icon PNG
 make perf ARGS=60 # 60s CPU / footprint budget check on the running app
@@ -12,13 +14,26 @@ make bench        # per-operation timings of the polling path
 make clean
 ```
 
+Or without make: `./build.sh` then `./run.sh`.
+
+### Install from a release
+
+Grab `DockStat.dmg` from [Releases](https://github.com/sonht1109/DockStat/releases),
+drag **DockStat** into Applications, and launch it.
+
+> First launch of an unsigned build: right-click → **Open** → **Open**.
+
 ## Build
 
 SwiftPM package, one executable target, `platforms: [.macOS(.v14)]`, Swift 6
-strict concurrency. The `Makefile` assembles the `.app`:
+strict concurrency. `Scripts/package-app.sh` (shared by the `Makefile`,
+`build.sh` and CI) builds the binary and assembles the bundle:
 
-`swift build -c release` → `build/DockStat.app/Contents/{MacOS/dockstat,
-Resources/, Info.plist}` → `codesign -s - --force` (ad-hoc) → `open`.
+`swift build -c release` → `dist/DockStat.app/Contents/{MacOS/dockstat,
+Resources/, Info.plist}` → `codesign -s -` (ad-hoc, `make sign`) → `open`.
+
+It asks for a universal `--arch arm64 --arch x86_64` build first and falls back
+to the native architecture when only Command Line Tools are installed.
 
 `xcodebuild` is not used: on a Command Line Tools-only machine it is
 unavailable, and none of this needs it.
@@ -135,7 +150,9 @@ asserting the tile is updated, not by screenshot.
 
 ```
 Package.swift                 Makefile                 Resources/Info.plist
-Scripts/perf.sh
+Scripts/perf.sh                # CPU / footprint budget check
+Scripts/package-app.sh        # release binary + dist/DockStat.app (used by CI)
+build.sh  run.sh  release.sh  # local build / run / tag-and-push (release.sh untracked)
 Sources/DockStat/
   main.swift                  # --probe / --render / --self-test, then NSApplication
   AppDelegate.swift           # status item lifecycle, main menu, settings window
@@ -156,7 +173,23 @@ Sources/DockStat/
     Formatters.swift          Thresholds.swift           Probe.swift
 ```
 
+## CI / releases
+
+`.github/workflows/ci.yml` builds the package, packages the `.app` and runs
+`--self-test` + `--probe 3` on every push and pull request to `master` /
+`develop`.
+
+`.github/workflows/release.yml` runs on `v*` tags (or manually): it packages
+the app, stamps `CFBundleShortVersionString` from the tag, signs it —
+Developer ID + notarize when the `APPLE_CERT_BASE64` / `APPLE_ID` /
+`APPLE_TEAM_ID` / `APPLE_APP_PASSWORD` secrets exist, ad-hoc otherwise — and
+publishes `DockStat.dmg` + `DockStat.zip` on the GitHub release. Tags
+containing `-dev` become pre-releases.
+
+`./release.sh dev|stable` (author-only, untracked) bumps the tag: `dev` from
+`develop`, `stable` from `master` after merging `develop`.
+
 ## Out of scope (v1)
 
 History graphs, per-core bars, top processes, network I/O, temperature/fan
-(needs SMC + privileges), Sparkle updates, Mac App Store / notarization.
+(needs SMC + privileges), Sparkle updates, Mac App Store distribution.

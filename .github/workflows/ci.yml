@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: Package .app
+        run: ./Scripts/package-app.sh
+
+      - name: Self-test
+        run: dist/DockStat.app/Contents/MacOS/dockstat --self-test
+
+      - name: Probe samplers
+        run: dist/DockStat.app/Contents/MacOS/dockstat --probe 3
