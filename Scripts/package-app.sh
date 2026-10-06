@@ -20,4 +20,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/dockstat"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+if [ -f Resources/DockStat.icns ]; then
+  cp Resources/DockStat.icns "$APP/Contents/Resources/DockStat.icns"
+else
+  echo "Warning: Resources/DockStat.icns missing — run 'make icons'"
+fi
 echo "App at: $APP"

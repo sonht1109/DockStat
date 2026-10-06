@@ -12,6 +12,8 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>DockStat</string>
+	<key>CFBundleIconFile</key>
+	<string>DockStat</string>
 	<key>CFBundleDisplayName</key>
 	<string>DockStat</string>
 	<key>CFBundlePackageType</key>
