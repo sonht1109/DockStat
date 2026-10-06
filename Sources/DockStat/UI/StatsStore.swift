@@ -252,8 +252,13 @@ final class StatsStore {
 
         let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold)
         let labelFont = NSFont.monospacedDigitSystemFont(ofSize: 7, weight: .medium)
-        let gap = (settings.barSeparator as NSString)
-            .size(withAttributes: [.font: valueFont]).width
+        // The separator text is drawn between the blocks, so the gap is its own
+        // width — same rule as the single-line title, where it is concatenated.
+        let separator = NSAttributedString(
+            string: settings.barSeparator,
+            attributes: [.font: valueFont, .foregroundColor: NSColor.labelColor]
+        )
+        let gap = separator.size().width
 
         struct Block {
             let value: NSAttributedString
@@ -289,7 +294,14 @@ final class StatsStore {
         return NSImage(size: size, flipped: false) { rect in
             var x: CGFloat = 0
             for (index, block) in blocks.enumerated() {
-                if index > 0 { x += gap }
+                if index > 0 {
+                    let separatorSize = separator.size()
+                    separator.draw(at: NSPoint(
+                        x: x + (gap - separatorSize.width) / 2,
+                        y: rect.midY - separatorSize.height / 2
+                    ))
+                    x += gap
+                }
 
                 let valueSize = block.value.size()
                 block.value.draw(at: NSPoint(
