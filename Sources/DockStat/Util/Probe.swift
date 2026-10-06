@@ -125,7 +125,7 @@ private struct DisplayPreview {
 
     var barTitle: String {
         settings.barStats
-            .map { settings.barStyle.text(value: displayText(for: $0), label: $0.label) }
+            .map { settings.barStyle.plainText(value: displayText(for: $0), label: $0.label) }
             .joined(separator: settings.barSeparator)
     }
 
@@ -201,18 +201,40 @@ extension Probe {
             a.onChange = { notified += 1 }
             a.startObserving()
             a.interval = 7
-            a.barStyle = .suffix
+            a.barStyle = .stackedIcon
             RunLoop.current.run(until: Date().addingTimeInterval(0.5))
 
             check("change was observed", notified > 0)
             let stored = defaults.data(forKey: key)
                 .flatMap { try? JSONDecoder().decode(SettingsModel.Payload.self, from: $0) }
             check("interval saved", stored?.interval == 7)
-            check("style saved", stored?.barStyle == .suffix)
+            check("style saved", stored?.barStyle == .stackedIcon)
 
             let reloaded = SettingsModel()
             check("reload restores interval", reloaded.interval == 7)
-            check("reload restores style", reloaded.barStyle == .suffix)
+            check("reload restores style", reloaded.barStyle == .stackedIcon)
+
+            print("bar style")
+            check("number only drops the label",
+                  BarStyle.percent.plainText(value: "27%", label: "CPU") == "27%")
+            check("stacked text keeps the label",
+                  BarStyle.stackedText.plainText(value: "27%", label: "CPU") == "27% CPU")
+            check("stacked styles flagged",
+                  BarStyle.stackedText.isStacked && BarStyle.stackedIcon.isStacked
+                      && BarStyle.stackedIcon.usesIcon && !BarStyle.stackedText.usesIcon
+                      && !BarStyle.percent.isStacked)
+            check("metric symbol renders",
+                  SymbolImage.menuBar(StatKind.cpu.symbol, color: .labelColor) != nil)
+            for legacy in ["suffix", "prefix", "iconSuffix", "iconPrefix", "bogus"] {
+                let data = "\"\(legacy)\"".data(using: .utf8)!
+                let style = try? JSONDecoder().decode(BarStyle.self, from: data)
+                let expected: BarStyle = legacy.hasPrefix("icon") ? .stackedIcon
+                    : (legacy == "bogus" ? .percent : .stackedText)
+                check("legacy style \(legacy) maps to \(expected.rawValue)", style == expected)
+            }
+            check("styles round-trip", BarStyle.allCases.allSatisfy {
+                (try? JSONDecoder().decode(BarStyle.self, from: JSONEncoder().encode($0))) == $0
+            })
 
             // Old payloads lacking newer keys must still decode.
             let partial = #"{"interval":5}"#.data(using: .utf8)!

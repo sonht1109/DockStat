@@ -2,26 +2,56 @@ import Foundation
 import Observation
 
 /// How a metric is rendered in the menu bar.
+///
+/// Either the bare number, or the number with a second line underneath naming
+/// the metric — as a text label or its SF Symbol. Only text leaves you guessing
+/// which number belongs to which metric.
 enum BarStyle: String, Codable, CaseIterable, Identifiable, Sendable {
     case percent      // 27%
-    case suffix       // 27%CPU
-    case prefix       // CPU 27%
+    case stackedText  // 27% over CPU
+    case stackedIcon  // 27% over <icon>
 
     var id: String { rawValue }
 
-    var title: String {
-        switch self {
-        case .percent: "27%"
-        case .suffix: "27%CPU"
-        case .prefix: "CPU 27%"
+    /// Older releases stored the label beside the number (`suffix`, `prefix`,
+    /// `iconSuffix`, `iconPrefix`); fold them into the stacked equivalents so an
+    /// upgrade keeps a sensible look instead of resetting to number-only.
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "suffix", "prefix": self = .stackedText
+        case "iconSuffix", "iconPrefix": self = .stackedIcon
+        default: self = BarStyle(rawValue: raw) ?? .percent
         }
     }
 
-    func text(value: String, label: String) -> String {
+    var title: String {
+        switch self {
+        case .percent: "Number only"
+        case .stackedText: "Number + text below"
+        case .stackedIcon: "Number + icon below"
+        }
+    }
+
+    /// Literal preview shown next to the title in Preferences.
+    var example: String {
+        switch self {
+        case .percent: "27%"
+        case .stackedText: "27% over CPU"
+        case .stackedIcon: "27% over ▣"
+        }
+    }
+
+    /// Whether the second line is drawn at all.
+    var isStacked: Bool { self != .percent }
+
+    var usesIcon: Bool { self == .stackedIcon }
+
+    /// One-line rendering, used by the headless preview and the cache key.
+    func plainText(value: String, label: String) -> String {
         switch self {
         case .percent: value
-        case .suffix: value + label
-        case .prefix: label + " " + value
+        case .stackedText, .stackedIcon: value + " " + label
         }
     }
 }

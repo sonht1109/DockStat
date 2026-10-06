@@ -78,9 +78,12 @@ concurrency-safe). All three are fixed-size C structs — no allocation, no
 ## Menu bar
 
 `NSStatusItem` with an `NSAttributedString` title in a `monospacedDigitSystemFont`
-(no width jitter). Configurable metric set, order, style (`27%`, `27%CPU`,
-`CPU 27%`), separator and per-metric colours. Left click → minimal popover
-(values, interval picker, refresh, Settings…, Quit); right click → context menu.
+(no width jitter). Configurable metric set, order, style and separator, plus
+per-metric colours. Styles: `27%` (number only), `27%` over `CPU` (label below),
+or `27%` over the metric's SF Symbol (icon below). Stacked styles are drawn as
+one image, since a status item title is a single text line. Left click → minimal
+popover (values, interval picker, refresh, Settings…, Quit); right click →
+context menu.
 
 ## Dock icon
 

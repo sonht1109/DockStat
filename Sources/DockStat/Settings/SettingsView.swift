@@ -44,9 +44,18 @@ struct SettingsView: View {
 
             Picker("Style", selection: $settings.barStyle) {
                 ForEach(BarStyle.allCases) { style in
-                    Text(style.title).tag(style)
+                    Label {
+                        Text(style.title)
+                    } icon: {
+                        // Icon style gets a real symbol so the option reads at a glance.
+                        if style.usesIcon { Image(systemName: "memorychip") }
+                    }
+                    .tag(style)
                 }
             }
+            Text(settings.barStyle.example)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             LabeledContent("Separator") {
                 TextField("", text: $settings.barSeparator)

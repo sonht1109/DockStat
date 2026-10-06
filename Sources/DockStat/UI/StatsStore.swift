@@ -190,16 +190,19 @@ final class StatsStore {
             return
         }
         lastBarTitle = title
-        bar?.setTitle(attributedBarTitle())
+        if settings.barStyle.isStacked {
+            bar?.setImage(stackedBarImage(), accessibilityLabel: title)
+        } else {
+            bar?.setTitle(singleLineBarTitle(), accessibilityLabel: title)
+        }
     }
 
+    /// Plain-text form of the current title: the cache key, and the
+    /// accessibility label of the rendered item.
     private func barTitle() -> String {
-        var parts: [String] = []
-        for kind in settings.barStats {
-            let text = settings.barStyle.text(value: displayText(for: kind), label: kind.label)
-            parts.append(text + marker(for: kind))
-        }
-        return parts.joined(separator: settings.barSeparator)
+        settings.barStats
+            .map { settings.barStyle.plainText(value: displayText(for: $0), label: $0.label) + marker(for: $0) }
+            .joined(separator: settings.barSeparator)
     }
 
     private func marker(for kind: StatKind) -> String {
@@ -210,7 +213,7 @@ final class StatsStore {
         }
     }
 
-    private func attributedBarTitle() -> NSAttributedString {
+    private func singleLineBarTitle() -> NSAttributedString {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
         let result = NSMutableAttributedString()
 
@@ -221,13 +224,86 @@ final class StatsStore {
                     attributes: [.font: font, .foregroundColor: NSColor.labelColor]
                 ))
             }
-            let text = settings.barStyle.text(value: displayText(for: kind), label: kind.label) + marker(for: kind)
             result.append(NSAttributedString(
-                string: text,
+                string: displayText(for: kind) + marker(for: kind),
                 attributes: [.font: font, .foregroundColor: color(for: kind)]
             ))
         }
         return result
+    }
+
+    /// Two lines per metric — the number on top, the metric's identity (label or
+    /// symbol) underneath. Drawn as one image because a status item title is a
+    /// single text line, so it cannot stack blocks side by side.
+    private func stackedBarImage() -> NSImage? {
+        guard settings.barStyle.isStacked, !settings.barStats.isEmpty else { return nil }
+
+        let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold)
+        let labelFont = NSFont.monospacedDigitSystemFont(ofSize: 7, weight: .medium)
+        let gap = (settings.barSeparator as NSString)
+            .size(withAttributes: [.font: valueFont]).width
+
+        struct Block {
+            let value: NSAttributedString
+            let label: NSAttributedString?
+            let icon: NSImage?
+            let width: CGFloat
+        }
+
+        let blocks: [Block] = settings.barStats.map { kind in
+            let color = color(for: kind)
+            let value = NSAttributedString(
+                string: displayText(for: kind) + marker(for: kind),
+                attributes: [.font: valueFont, .foregroundColor: color]
+            )
+            let label = settings.barStyle.usesIcon ? nil : NSAttributedString(
+                string: kind.label,
+                attributes: [.font: labelFont, .foregroundColor: color]
+            )
+            let icon = settings.barStyle.usesIcon
+                ? SymbolImage.menuBar(kind.symbol, pointSize: 8, color: color)
+                : nil
+            let bottom = icon?.size.width ?? label?.size().width ?? 0
+            return Block(value: value, label: label, icon: icon, width: ceil(max(value.size().width, bottom)))
+        }
+
+        let width = blocks.reduce(0) { $0 + $1.width } + gap * CGFloat(blocks.count - 1)
+        let valueHeight = ceil(valueFont.ascender - valueFont.descender)
+        let bottomHeight = settings.barStyle.usesIcon
+            ? ceil(blocks.compactMap(\.icon?.size.height).max() ?? 0)
+            : ceil(labelFont.ascender - labelFont.descender)
+        let size = NSSize(width: ceil(width), height: valueHeight + bottomHeight)
+
+        return NSImage(size: size, flipped: false) { rect in
+            var x: CGFloat = 0
+            for (index, block) in blocks.enumerated() {
+                if index > 0 { x += gap }
+
+                let valueSize = block.value.size()
+                block.value.draw(at: NSPoint(
+                    x: x + (block.width - valueSize.width) / 2,
+                    y: rect.maxY - valueSize.height
+                ))
+
+                if let icon = block.icon {
+                    icon.draw(in: NSRect(
+                        x: x + (block.width - icon.size.width) / 2,
+                        y: rect.minY,
+                        width: icon.size.width,
+                        height: icon.size.height
+                    ))
+                } else if let label = block.label {
+                    let labelSize = label.size()
+                    label.draw(at: NSPoint(
+                        x: x + (block.width - labelSize.width) / 2,
+                        y: rect.minY
+                    ))
+                }
+
+                x += block.width
+            }
+            return true
+        }
     }
 
     private func color(for kind: StatKind) -> NSColor {

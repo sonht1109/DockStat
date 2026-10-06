@@ -36,8 +36,25 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         popover.delegate = self
     }
 
-    func setTitle(_ title: NSAttributedString) {
-        statusItem.button?.attributedTitle = title
+    func setTitle(_ title: NSAttributedString, accessibilityLabel: String) {
+        guard let button = statusItem.button else { return }
+        button.image = nil
+        button.imagePosition = .noImage
+        button.attributedTitle = title
+        button.setAccessibilityLabel(accessibilityLabel)
+    }
+
+    func setImage(_ image: NSImage?, accessibilityLabel: String) {
+        guard let button = statusItem.button, let image else {
+            setTitle(NSAttributedString(string: ""), accessibilityLabel: accessibilityLabel)
+            return
+        }
+        button.attributedTitle = NSAttributedString(string: "")
+        button.image = image
+        // Never let AppKit rescale the drawing: the blocks are laid out to the point.
+        button.imageScaling = .scaleNone
+        button.imagePosition = .imageOnly
+        button.setAccessibilityLabel(accessibilityLabel)
     }
 
     func setVisible(_ visible: Bool) {
