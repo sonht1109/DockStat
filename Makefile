@@ -4,7 +4,7 @@ INSTALL_TO := /Applications/DockStat.app
 BUNDLE_ID  := dev.sonht.dockstat
 ICNS       := Resources/DockStat.icns
 
-.PHONY: build bundle sign run restart install uninstall clean perf bench verify icons logo panel
+.PHONY: build bundle sign run restart install uninstall clean perf bench verify icons logo panel demo
 
 LOGO := docs/logo.png
 
@@ -24,6 +24,11 @@ $(LOGO): Scripts/make-icon.swift
 	@swift Scripts/make-icon.swift $(LOGO) 1024
 
 logo: $(LOGO)
+
+# README pictures: the status item and the Dock tile drawn by the app's own
+# renderers on synthetic macOS chrome, so they cannot drift from the code.
+demo: sign
+	$(BIN) --demo docs
 
 # Universal (arm64 + x86_64) when Xcode is available, native arch otherwise.
 bundle: $(ICNS)

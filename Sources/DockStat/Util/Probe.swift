@@ -7,6 +7,7 @@ import SwiftUI
 ///
 ///   dockstat --probe [seconds]     sample the three metrics and print them
 ///   dockstat --render <path>       render the default Dock icon to a PNG
+///   dockstat --demo [dir]          render the README pictures into dir (docs)
 ///   dockstat --self-test           formatters, thresholds, settings round-trip
 enum Probe {
     @MainActor
@@ -48,6 +49,11 @@ enum Probe {
         if let index = arguments.firstIndex(of: "--panel") {
             let path = arguments.count > index + 1 ? arguments[index + 1] : "/tmp/dockstat-panel.png"
             renderPanel(to: path)
+            return true
+        }
+        if let index = arguments.firstIndex(of: "--demo") {
+            let directory = arguments.count > index + 1 ? arguments[index + 1] : "docs"
+            DemoRenderer.writeAll(into: directory)
             return true
         }
         return false
@@ -186,6 +192,21 @@ private extension String {
 }
 
 extension Probe {
+    /// Drawing inputs for one status item, fixed here: neither the self-test nor
+    /// the README pictures may depend on the running user's settings.
+    @MainActor
+    private static func barItem(style: BarStyle, marker: String) -> BarItemRenderer {
+        BarItemRenderer(
+            stats: [.cpu],
+            style: style,
+            separator: "  ",
+            text: { _ in "27%" },
+            color: { _ in .labelColor },
+            separatorColor: .labelColor,
+            marker: { _ in marker }
+        )
+    }
+
     /// Deterministic checks for the pure logic: formatters, thresholds and the
     /// settings persistence round-trip (including observation-driven saves).
     @MainActor
@@ -288,6 +309,40 @@ extension Probe {
 
             let oneLine = renderer.image(for: IconSpec(line1: "42%"))
             check("single-line icon renders", oneLine.size.width == 256)
+
+            print("menu bar item")
+            for style in BarStyle.allCases {
+                let item = barItem(style: style, marker: "")
+                check(
+                    "\(style.rawValue) item renders",
+                    style.isStacked ? item.image() != nil : item.attributedTitle().string == "27%"
+                )
+            }
+            check("plain title carries the marker", barItem(style: .percent, marker: "!").plainTitle() == "27%!")
+            check(
+                "plain title joins the metrics",
+                BarItemRenderer(
+                    stats: [.cpu, .mem],
+                    style: .percent,
+                    separator: "  ",
+                    text: { _ in "27%" },
+                    color: { _ in .labelColor },
+                    separatorColor: .labelColor,
+                    marker: { _ in "" }
+                ).plainTitle() == "27%  27%"
+            )
+
+            print("readme demo")
+            let hero = DemoRenderer.heroImage()
+            let board = DemoRenderer.menuBarImage()
+            check("hero renders at 820×232", hero.size == NSSize(width: 820, height: 232))
+            check("styles board renders", board.size.width > 0 && board.size.height > 0)
+            check("dock icon renders at 320×320", DemoRenderer.dockIconImage().size == NSSize(width: 320, height: 320))
+            check(
+                "hero has a PNG representation",
+                hero.tiffRepresentation.flatMap { NSBitmapImageRep(data: $0) }?
+                    .representation(using: .png, properties: [:]) != nil
+            )
         }
 
         if let backup {

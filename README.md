@@ -6,6 +6,10 @@
   <img src="docs/logo.png" alt="DockStat logo" width="224">
 </p>
 
+<p align="center">
+  <img src="docs/demo.png" alt="DockStat on a macOS desktop: 27%  73%  41.5 GB in the menu bar, and a 27% / CPU tile in the Dock" width="820">
+</p>
+
 Live CPU / memory / disk in the macOS menu bar **and** on the Dock icon.
 Native SwiftUI + AppKit, no Xcode project, no subprocesses.
 
@@ -14,6 +18,7 @@ make run          # build dist/DockStat.app and launch it
 make install      # copy to /Applications (better for launch-at-login)
 make icons        # re-render Resources/DockStat.icns from Scripts/make-icon.swift
 make logo         # render docs/logo.png (the README image) from the same script
+make demo         # render docs/{demo,menu-bar,dock-icon}.png (the pictures below)
 make verify       # self-test + 3s sampler probe + icon PNG
 make perf ARGS=60 # 60s CPU / footprint budget check on the running app
 make bench        # per-operation timings of the polling path
@@ -26,6 +31,11 @@ through `iconutil` into `Resources/DockStat.icns` (regenerated automatically by
 `make bundle` when the script changes). `make logo` renders the same art to
 `docs/logo.png` for this page.
 
+Every picture here works that way: `make demo` renders the menu bar item and the
+Dock tile offscreen, from the same code the app draws them with, onto synthetic
+macOS chrome. No screenshot, no screen recording permission — and no way for the
+images to drift from what the app does.
+
 Or without make: `./build.sh` then `./run.sh`.
 
 ### Install from a release
@@ -34,6 +44,23 @@ Grab `DockStat.dmg` from [Releases](https://github.com/sonht1109/DockStat/releas
 drag **DockStat** into Applications, and launch it.
 
 > First launch of an unsigned build: right-click → **Open** → **Open**.
+
+## What it looks like
+
+<p align="center">
+  <img src="docs/menu-bar.png" alt="The three menu bar styles: 27%  73%  41.5 GB as numbers only; the same values with CPU / MEM / DISK underneath; and with a symbol underneath" width="735">
+</p>
+
+The three menu bar styles — `27%`, the number over the metric's label, the number
+over its SF Symbol — with the default metric set.
+
+<p align="center">
+  <img src="docs/dock-icon.png" alt="The Dock icon: a dark green squircle with 27% over a hairline and CPU" width="192">
+</p>
+
+The Dock icon, redrawn every poll: the app icon's squircle, the value over its
+label, escalating colour on warn / critical. Details in [Menu bar](#menu-bar) and
+[Dock icon](#dock-icon).
 
 ## Build
 
@@ -89,6 +116,9 @@ The panel is a borderless `NSPanel` that we place by hand, not an `NSPopover`:
 AppKit decides where a popover goes, and it does not always decide to put it
 directly under the menu bar.
 
+The art itself lives in `BarItemRenderer`, shared with `--demo` so the README
+picture is drawn by the same code.
+
 ## Dock icon
 
 Custom-drawn squircle: background fill, border stroke (as a fraction of the
@@ -121,7 +151,7 @@ keys fall back to defaults, so adding a setting never wipes a configuration.
 
 ## Verification
 
-`make verify` runs three headless modes:
+`make verify` runs the headless checks:
 
 - `--self-test` — formatters, hex colour round-trip, threshold hysteresis,
   settings save/reload round-trip (including observation-driven saves and
@@ -132,6 +162,7 @@ keys fall back to defaults, so adding a setting never wipes a configuration.
 - `--panel <path>` (`make panel`) — writes the panel to a PNG. The interval
   popup comes out blank (the renderer cannot draw it); everything else is to
   scale.
+- `--demo <dir>` (`make demo`) — writes the README pictures into `docs/`.
 - `--bench` (`make bench`) — per-operation timings of the polling path.
 
 Cross-check MEM against Activity Monitor, disk against `df -h /`:
@@ -165,8 +196,9 @@ text, ~0.1 % for the Dock tile. `ps` RSS is ~70 MB because it counts shared
 framework pages; `footprint`/`phys_footprint` is the honest number.
 
 Not verified on the development machine: screen recording is unavailable there,
-so the Dock tile was checked by rendering the icon to PNG (`--render`) and by
-asserting the tile is updated, not by screenshot.
+so no picture here is a screenshot. The Dock tile is checked by rendering the
+icon to PNG (`--render`) and by asserting the tile is updated — the same
+offscreen route the README pictures take.
 
 ## Layout
 
@@ -176,7 +208,7 @@ Scripts/perf.sh                # CPU / footprint budget check
 Scripts/package-app.sh        # release binary + dist/DockStat.app (used by CI)
 build.sh  run.sh  release.sh  # local build / run / tag-and-push (release.sh untracked)
 Sources/DockStat/
-  main.swift                  # --probe / --render / --self-test, then NSApplication
+  main.swift                  # --probe / --render / --demo / --self-test, then NSApplication
   AppDelegate.swift           # status item lifecycle, main menu, settings window
   Core/
     Sample.swift              # StatKind, Severity, Sample
@@ -186,13 +218,16 @@ Sources/DockStat/
     SamplingEngine.swift      # samplers + timer off the main actor
   UI/
     StatsStore.swift          # @MainActor @Observable single source of truth
-    MenuBarController.swift   PopoverView.swift
+    BarItemRenderer.swift     # the status item's art (all three styles)
+    MenuBarController.swift   PanelView.swift
     DockIconRenderer.swift    DockBadgeController.swift
   Settings/
     SettingsModel.swift       SettingsView.swift
     LaunchAtLogin.swift       Theme.swift
   Util/
-    Formatters.swift          Thresholds.swift           Probe.swift
+    Formatters.swift          Thresholds.swift           SymbolImage.swift
+    Probe.swift               # headless self-check, probe, bench
+    DemoRenderer.swift        # README pictures: synthetic chrome + the art above
 ```
 
 ## CI / releases

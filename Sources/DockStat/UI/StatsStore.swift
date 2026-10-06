@@ -195,7 +195,8 @@ final class StatsStore {
     // MARK: - Menu bar
 
     private func updateBar(force: Bool = false) {
-        let title = barTitle()
+        let item = barItem()
+        let title = item.plainTitle()
         guard force || title != lastBarTitle else {
             // Colour escalation also depends on severity, so compare the string
             // including markers — it already covers that.
@@ -203,131 +204,30 @@ final class StatsStore {
         }
         lastBarTitle = title
         if settings.barStyle.isStacked {
-            bar?.setImage(stackedBarImage(), accessibilityLabel: title)
+            bar?.setImage(item.image(), accessibilityLabel: title)
         } else {
-            bar?.setTitle(singleLineBarTitle(), accessibilityLabel: title)
+            bar?.setTitle(item.attributedTitle(), accessibilityLabel: title)
         }
     }
 
-    /// Plain-text form of the current title: the cache key, and the
-    /// accessibility label of the rendered item.
-    private func barTitle() -> String {
-        settings.barStats
-            .map { settings.barStyle.plainText(value: displayText(for: $0), label: $0.label) + marker(for: $0) }
-            .joined(separator: settings.barSeparator)
-    }
-
-    private func marker(for kind: StatKind) -> String {
-        switch severity(for: kind) {
-        case .normal: ""
-        case .warning: "!"
-        case .critical: "⚠"
-        }
-    }
-
-    private func singleLineBarTitle() -> NSAttributedString {
-        let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        let result = NSMutableAttributedString()
-
-        for (index, kind) in settings.barStats.enumerated() {
-            if index > 0 {
-                result.append(NSAttributedString(
-                    string: settings.barSeparator,
-                    attributes: [.font: font, .foregroundColor: NSColor.labelColor]
-                ))
+    /// The status item's drawing inputs. `BarItemRenderer` owns the art so the
+    /// offscreen `--demo` render can show the very same thing.
+    private func barItem() -> BarItemRenderer {
+        BarItemRenderer(
+            stats: settings.barStats,
+            style: settings.barStyle,
+            separator: settings.barSeparator,
+            text: { [self] in displayText(for: $0) },
+            color: { [self] in color(for: $0) },
+            separatorColor: .labelColor,
+            marker: { [self] in
+                switch severity(for: $0) {
+                case .normal: ""
+                case .warning: "!"
+                case .critical: "⚠"
+                }
             }
-            result.append(NSAttributedString(
-                string: displayText(for: kind) + marker(for: kind),
-                attributes: [.font: font, .foregroundColor: color(for: kind)]
-            ))
-        }
-        return result
-    }
-
-    /// Two lines per metric — the number on top, the metric's identity (label or
-    /// symbol) underneath. Drawn as one image because a status item title is a
-    /// single text line, so it cannot stack blocks side by side.
-    private func stackedBarImage() -> NSImage? {
-        guard settings.barStyle.isStacked, !settings.barStats.isEmpty else { return nil }
-
-        let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold)
-        let labelFont = NSFont.monospacedDigitSystemFont(ofSize: 7, weight: .medium)
-        // The separator text is drawn between the blocks, so the gap is its own
-        // width — same rule as the single-line title, where it is concatenated.
-        let separator = NSAttributedString(
-            string: settings.barSeparator,
-            attributes: [.font: valueFont, .foregroundColor: NSColor.labelColor]
         )
-        let gap = separator.size().width
-
-        struct Block {
-            let value: NSAttributedString
-            let label: NSAttributedString?
-            let icon: NSImage?
-            let width: CGFloat
-        }
-
-        let blocks: [Block] = settings.barStats.map { kind in
-            let color = color(for: kind)
-            let value = NSAttributedString(
-                string: displayText(for: kind) + marker(for: kind),
-                attributes: [.font: valueFont, .foregroundColor: color]
-            )
-            let label = settings.barStyle.usesIcon ? nil : NSAttributedString(
-                string: kind.label,
-                attributes: [.font: labelFont, .foregroundColor: color]
-            )
-            let icon = settings.barStyle.usesIcon
-                ? SymbolImage.menuBar(kind.symbol, pointSize: 8, color: color)
-                : nil
-            let bottom = icon?.size.width ?? label?.size().width ?? 0
-            return Block(value: value, label: label, icon: icon, width: ceil(max(value.size().width, bottom)))
-        }
-
-        let width = blocks.reduce(0) { $0 + $1.width } + gap * CGFloat(blocks.count - 1)
-        let valueHeight = ceil(valueFont.ascender - valueFont.descender)
-        let bottomHeight = settings.barStyle.usesIcon
-            ? ceil(blocks.compactMap(\.icon?.size.height).max() ?? 0)
-            : ceil(labelFont.ascender - labelFont.descender)
-        let size = NSSize(width: ceil(width), height: valueHeight + bottomHeight)
-
-        return NSImage(size: size, flipped: false) { rect in
-            var x: CGFloat = 0
-            for (index, block) in blocks.enumerated() {
-                if index > 0 {
-                    let separatorSize = separator.size()
-                    separator.draw(at: NSPoint(
-                        x: x + (gap - separatorSize.width) / 2,
-                        y: rect.midY - separatorSize.height / 2
-                    ))
-                    x += gap
-                }
-
-                let valueSize = block.value.size()
-                block.value.draw(at: NSPoint(
-                    x: x + (block.width - valueSize.width) / 2,
-                    y: rect.maxY - valueSize.height
-                ))
-
-                if let icon = block.icon {
-                    icon.draw(in: NSRect(
-                        x: x + (block.width - icon.size.width) / 2,
-                        y: rect.minY,
-                        width: icon.size.width,
-                        height: icon.size.height
-                    ))
-                } else if let label = block.label {
-                    let labelSize = label.size()
-                    label.draw(at: NSPoint(
-                        x: x + (block.width - labelSize.width) / 2,
-                        y: rect.minY
-                    ))
-                }
-
-                x += block.width
-            }
-            return true
-        }
     }
 
     private func color(for kind: StatKind) -> NSColor {
