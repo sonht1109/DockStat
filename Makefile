@@ -4,7 +4,9 @@ INSTALL_TO := /Applications/DockStat.app
 BUNDLE_ID  := dev.sonht.dockstat
 ICNS       := Resources/DockStat.icns
 
-.PHONY: build bundle sign run restart install uninstall clean perf bench verify icons
+.PHONY: build bundle sign run restart install uninstall clean perf bench verify icons logo
+
+LOGO := docs/logo.png
 
 build:
 	swift build -c release
@@ -16,6 +18,12 @@ $(ICNS): Scripts/make-icon.swift Scripts/make-icons.sh
 
 icons:
 	@bash Scripts/make-icons.sh
+
+# Same art as the .icns, as a single PNG for the README.
+$(LOGO): Scripts/make-icon.swift
+	@swift Scripts/make-icon.swift $(LOGO) 1024
+
+logo: $(LOGO)
 
 # Universal (arm64 + x86_64) when Xcode is available, native arch otherwise.
 bundle: $(ICNS)

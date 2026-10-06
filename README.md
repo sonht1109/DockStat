@@ -2,6 +2,10 @@
 
 [![CI](https://github.com/sonht1109/DockStat/actions/workflows/ci.yml/badge.svg)](https://github.com/sonht1109/DockStat/actions/workflows/ci.yml)
 
+<p align="center">
+  <img src="docs/logo.png" alt="DockStat logo" width="224">
+</p>
+
 Live CPU / memory / disk in the macOS menu bar **and** on the Dock icon.
 Native SwiftUI + AppKit, no Xcode project, no subprocesses.
 
@@ -9,6 +13,7 @@ Native SwiftUI + AppKit, no Xcode project, no subprocesses.
 make run          # build dist/DockStat.app and launch it
 make install      # copy to /Applications (better for launch-at-login)
 make icons        # re-render Resources/DockStat.icns from Scripts/make-icon.swift
+make logo         # render docs/logo.png (the README image) from the same script
 make verify       # self-test + 3s sampler probe + icon PNG
 make perf ARGS=60 # 60s CPU / footprint budget check on the running app
 make bench        # per-operation timings of the polling path
@@ -18,7 +23,8 @@ make clean
 The app icon is code, not a binary asset: `Scripts/make-icon.swift` draws the
 squircle and the percent glyph with Core Graphics, and `make icons` renders it
 through `iconutil` into `Resources/DockStat.icns` (regenerated automatically by
-`make bundle` when the script changes).
+`make bundle` when the script changes). `make logo` renders the same art to
+`docs/logo.png` for this page.
 
 Or without make: `./build.sh` then `./run.sh`.
 

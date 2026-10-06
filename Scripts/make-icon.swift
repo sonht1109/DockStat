@@ -139,6 +139,19 @@ let slots: [(String, Int)] = [
     ("icon_512x512.png", 512), ("icon_512x512\(at2).png", 1024)
 ]
 
+// `make-icon.swift <out.png> [size]` writes one PNG (README logo); a directory
+// argument gets the full iconset instead.
+if let out = CommandLine.arguments.dropFirst().first, out.hasSuffix(".png") {
+    let size = CommandLine.arguments.count > 2 ? Int(CommandLine.arguments[2]) ?? 1024 : 1024
+    let directory = (out as NSString).deletingLastPathComponent
+    if !directory.isEmpty {
+        try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+    }
+    try! render(pixels: size).write(to: URL(fileURLWithPath: out))
+    print("logo: \(out) (\(size)px)")
+    exit(0)
+}
+
 let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : ".build/DockStat.iconset"
 try? FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
 
