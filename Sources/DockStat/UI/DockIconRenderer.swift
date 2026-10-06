@@ -79,7 +79,9 @@ final class DockIconRenderer {
     func layout(_ spec: IconSpec) -> [LaidOutLine] {
         let hasSecond = !spec.line2.isEmpty
         let firstSize = spec.size * (hasSecond ? 0.30 : 0.38)
-        let secondSize = spec.size * 0.165
+        // The bottom line stays clearly subordinate to the top one, but big
+        // enough to read at the Dock's ~128pt tile.
+        let secondSize = spec.size * 0.195
         return [
             make(spec.line1, size: firstSize, color: spec.text),
             hasSecond ? make(spec.line2, size: secondSize, color: spec.text) : nil
